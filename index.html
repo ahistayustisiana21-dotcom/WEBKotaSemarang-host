@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIP Kota Semarang - Sistem Informasi Pertanahan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ===============================
+   SECTION PETA 2D & 3D
+================================ */
+.map-section {
+    max-width: 1800px; /* Lebih lebar */
+    margin: 5rem auto;
+    padding: 4rem 3.5rem;
+    background: #ffffff;
+    border-radius: 16px;
+}
+
+.map-title {
+    text-align: center;
+    font-size: 2.6rem; /* Judul lebih besar */
+    font-weight: 600;
+    color: #1f3c40;
+    margin-bottom: 4rem;
+}
+
+.map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(650px, 1fr)); /* Card lebih besar */
+    gap: 70px;
+    align-items: start;
+}
+
+/* CARD */
+.map-card {
+    background: #f8f8f8;
+    padding: 32px; /* Padding lebih luas */
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+    text-align: center;
+}
+
+.map-card h3 {
+    font-size: 1.5rem; /* Judul card lebih besar */
+    margin-bottom: 20px;
+    color: #1f3c40;
+}
+
+/* IFRAME */
+.map-card iframe {
+    width: 100%;
+    height: 550px; /* Peta lebih tinggi */
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    margin-bottom: 20px;
+}
+
+/* DESKRIPSI */
+.map-desc {
+    font-size: 1.1rem; /* Teks lebih besar */
+    line-height: 1.9;
+    color: #444;
+    text-align: justify;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .map-card iframe {
+        height: 300px;
+    }
+}
+
+        /* --- VARIABLE & RESET --- */
+        :root {
+            --primary-color: rgb(47, 79, 79);   
+            --accent-color: rgb(112, 128, 144); 
+            
+            --text-dark: #333;
+            --text-light: #fff;
+            --bg-light: #f4f4f4;
+            --header-grey: #6c757d;
+            --btn-blue: #0d6efd;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand img {
+            height: 50px;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        .brand-text h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .brand-text p {
+            font-size: 0.8rem;
+            font-weight: 300;
+            color: #ddd;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            margin-left: 25px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-color);
+        }
+        
+        /* --- MODAL STYLES --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s;
+            position: relative;
+        }
+        
+        /* Ukuran Modal Khusus */
+        .modal-video-content { max-width: 800px !important; }
+        .modal-service-content, .modal-list-content, .modal-detail-content, .modal-news-content {
+            max-width: 900px !important; max-height: 90vh; overflow-y: auto; padding: 0;
+        }
+        /* Modal Tentang Kami (Lebih Lebar) */
+        .modal-about-content {
+            max-width: 900px !important;
+            padding: 0 !important;
+            overflow: hidden; 
+        }
+        
+        .modal-body-padding { padding: 30px; }
+
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: color 0.3s;
+            cursor: pointer;
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            z-index: 10;
+        }
+        .white-close-btn { color: white; }
+        .close-btn:hover { color: var(--primary-color); }
+        .white-close-btn:hover { color: #ddd; }
+
+        .modal-content h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-service-content h3, .modal-news-content h3 { margin-top: 20px; }
+
+        /* --- SLIDE TRANSITION STYLES (TENTANG KAMI) --- */
+        .about-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .about-nav {
+            display: flex;
+            background: #f1f1f1;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .about-nav-btn {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #555;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .about-nav-btn:hover {
+            background-color: #e9e9e9;
+            color: var(--primary-color);
+        }
+
+        .about-nav-btn.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+            background-color: white;
+        }
+
+        /* Container untuk slider */
+        .slider-viewport {
+            width: 100%;
+            overflow: hidden; 
+            background: white;
+        }
+
+        .slider-track {
+            display: flex;
+            width: 400%; /* Karena ada 4 slide */
+            transition: transform 0.5s ease-in-out; 
+        }
+
+        .slider-slide {
+            width: 25%; /* 100% / 4 slide */
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        /* Konten dalam slide */
+        .slide-title {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--accent-color);
+            padding-left: 15px;
+        }
+
+        .slide-text {
+            text-align: justify;
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .vision-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+        }
+
+        /* --- STYLES LAINNYA --- */
+        .service-list-container { max-height: 60vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin: 0 30px 30px 30px; }
+        .service-table { width: 100%; border-collapse: collapse; }
+        .service-table th, .service-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.9rem; cursor: pointer; transition: background 0.2s; }
+        .service-table tr:hover { background-color: #e9ecef; }
+        .service-table tr:last-child td { border-bottom: none; }
+        .detail-header { background-color: var(--header-grey); color: white; padding: 15px 30px; font-size: 1rem; font-weight: 600; border-top-left-radius: 12px; border-top-right-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .detail-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 15px; color: #333; }
+        .detail-list { list-style-type: decimal; margin-left: 20px; font-size: 0.85rem; line-height: 1.8; color: #444; margin-bottom: 20px; }
+        .detail-list li { padding-left: 10px; }
+        .detail-note { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; color: #333; }
+        .btn-eform { background-color: var(--btn-blue); color: white; padding: 8px 16px; border: none; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-transform: uppercase; transition: background 0.3s; display: inline-block; }
+        .btn-eform:hover { background-color: #0b5ed7; }
+        .list-title { margin-top: 30px; }
+        .tab-container { display: flex; justify-content: center; margin-bottom: 20px; background: #f1f1f1; border-radius: 8px; padding: 5px; margin-top: 20px; margin-left: 20px; margin-right: 20px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: #666; border-radius: 6px; transition: all 0.3s; }
+        .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .tab-content { display: none; animation: fadeIn 0.5s; padding: 0 30px 30px 30px; }
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
+        .news-card { background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; text-decoration: none; color: var(--text-dark); display: flex; flex-direction: column; }
+        .news-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .news-card .video-container { margin-top: 0; border-radius: 0; }
+        .news-card video { border-radius: 0; }
+        .news-body { padding: 15px; display: flex; flex-direction: column; flex-grow: 1; }
+        .news-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; line-height: 1.4; color: #333; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; }
+        select.form-control { cursor: pointer; background-color: white; }
+        .btn-submit { background-color: var(--primary-color); color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 1rem; font-weight: 600; transition: background 0.3s; margin-top: 10px; }
+        .btn-submit:hover { background-color: rgb(30, 50, 50); }
+        .recaptcha-box { border: 1px solid #d3d3d3; background: #f9f9f9; padding: 15px; border-radius: 4px; display: flex; align-items: center; gap: 15px; margin-bottom: 15px; width: fit-content; }
+        .recaptcha-checkbox { width: 24px; height: 24px; border: 2px solid #c1c1c1; background: white; border-radius: 2px; cursor: pointer; }
+        .recaptcha-text { font-size: 0.9rem; color: #555; }
+        .recaptcha-logo { margin-left: auto; display: flex; flex-direction: column; align-items: center; font-size: 0.6rem; color: #555; }
+        .recaptcha-logo i { font-size: 1.2rem; color: #4285f4; margin-bottom: 2px; }
+        .requirements-box { display: none; margin-top: 20px; padding: 20px; background: #f9f9f9; border-left: 4px solid var(--accent-color); border-radius: 4px; }
+        .requirements-box h4 { color: var(--primary-color); margin-bottom: 10px; font-size: 1.2rem; }
+        .requirements-box h5 { font-size: 1rem; margin-bottom: 10px; font-weight: 600; }
+        .requirements-box ol { margin-left: 20px; font-size: 0.9rem; line-height: 1.6; color: #444; }
+        .requirements-box li { margin-bottom: 8px; }
+        .video-container { position: relative; width: 100%; height: 0; padding-bottom: 56.25%; margin-top: 15px; }
+        .video-container video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px; }
+        .hero { background: none; background-size: cover; background-position: center; height: 500px; display: flex; justify-content: center; align-items: center; padding: 0 20px; position: relative; overflow: hidden; }
+        #hero-video { position: absolute; top: 50%; left: 50%; min-width: 100%; min-height: 100%; width: auto; height: auto; z-index: 1; transform: translate(-50%, -50%); object-fit: cover; }
+        .hero:before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); z-index: 2; }
+        .glass-box { z-index: 3; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 15px; padding: 40px 60px; text-align: center; color: white; width: 100%; max-width: 1000px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .glass-box h2 { font-size: 2.2rem; margin-bottom: 15px; font-weight: 700; }
+        .glass-box p { font-size: 1rem; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+        .cards-container { display: flex; justify-content: center; gap: 20px; padding: 0 40px; margin-top: -60px; margin-bottom: 60px; position: relative; z-index: 10; flex-wrap: wrap; }
+        .card { background: white; border-radius: 12px; padding: 30px 20px; width: 280px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); transition: transform 0.3s ease, box-shadow 0.3s ease; flex: 1 1 250px; max-width: 300px; cursor: pointer; }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
+        .card-icon { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 20px; }
+        .card h3 { font-size: 1.1rem; margin-bottom: 10px; color: var(--text-dark); }
+        .card p { font-size: 0.85rem; color: #666; line-height: 1.4; }
+        .card b { color: var(--primary-color); }
+        .news-detail-container { padding: 30px; }
+        .news-detail-title { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-bottom: 15px; }
+        .news-detail-image { width: 100%; height: auto; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .news-detail-text { font-size: 0.95rem; line-height: 1.8; color: #444; margin-bottom: 20px; text-align: justify; }
+        .news-hashtags { font-size: 0.85rem; color: var(--primary-color); font-weight: 600; margin-bottom: 20px; }
+        .news-footer-info { border-top: 1px solid #eee; padding-top: 15px; font-size: 0.85rem; color: #666; }
+
+        /* --- FOOTER (REDESIGNED) --- */
+        footer {
+            background-color: var(--primary-color); 
+            background: linear-gradient(to right, rgb(27, 49, 49), rgb(47, 79, 79));
+            color: white; padding: 30px 50px; margin-top: auto;
+            border-top: 4px solid var(--accent-color);
+        }
+        .footer-content {
+            display: flex; flex-wrap: wrap; justify-content: space-between;
+            align-items: center; /* Vertikal Align Center */
+            max-width: 1200px; margin: 0 auto;
+        }
+        
+        .footer-container {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .footer-left-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 2;
+        }
+
+        .office-img-wrapper {
+            width: 180px; 
+            height: 120px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+        
+        .office-img-wrapper img {
+            width: auto;
+            height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        .office-info h4 {
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .office-info p {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.4;
+        }
+
+        .footer-right-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            flex: 1;
+        }
+
+        .social-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .social-label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .social-icons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .social-icons a {
+            width: 35px; height: 35px; background: rgba(255,255,255,0.2);
+            border-radius: 50%; display: flex; justify-content: center;
+            align-items: center; color: white; text-decoration: none; transition: background 0.3s;
+        }
+        .social-icons a:hover { background: var(--accent-color); color: var(--primary-color); }
+
+        .map-placeholder {
+            width: 250px; height: 120px; background: #ddd;
+            border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .map-placeholder iframe { width: 100%; height: 100%; border: 0; }
+
+        @media (max-width: 768px) {
+            .footer-container { flex-direction: column; gap: 30px; }
+            .footer-left-group { flex-direction: column; align-items: flex-start; }
+            .office-img-wrapper { width: 100%; max-width: 200px; height: auto; }
+            .footer-right-group { align-items: flex-start; width: 100%; }
+            .social-row { width: 100%; justify-content: space-between; }
+            .map-placeholder { width: 100%; }
+        }
+
+        .app-links-container {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: white;
+            margin-bottom: 0;
+        }
+
+        .app-links-container h3 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+
+        .app-link-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .app-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 15px;
+        }
+
+        .app-icon-wrapper:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .app-icon-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .bhumi-bg { background: linear-gradient(135deg, #006494, #00a8e8); }
+        .sentuh-bg { background: linear-gradient(135deg, #e85d04, #ffba08); }
+        .gistaru-bg { background: linear-gradient(135deg, #d00000, #ff4d4d); }
+
+        /* --- STYLE KHUSUS PENGUMUMAN (SESUAI GAMBAR TERLAMPIR) --- */
+        .announcement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        .ann-card {
+            background-color: #212529; /* Background Gelap (Hitam/Abu Tua) */
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            height: 100%; /* Agar tinggi card sama rata */
+        }
+
+        .ann-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            border-color: #555;
+        }
+
+        .ann-img-wrapper {
+            width: 100%;
+            height: 160px; /* Tinggi gambar tetap */
+            background-color: #e9ecef;
+            position: relative;
+        }
+
+        .ann-img-real {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Agar gambar tidak gepeng */
+            object-position: top center;
+        }
+
+        .ann-body {
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1; /* Mengisi sisa ruang agar tanggal selalu di bawah */
+            justify-content: space-between;
+        }
+
+        .ann-title {
+            color: #ffffff; /* Teks Putih */
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            /* Membatasi teks maksimal 3 baris */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .ann-date {
+            color: #adb5bd; /* Teks Abu-abu terang */
+            font-size: 0.8rem;
+            margin-top: auto; /* Memaksa tanggal ke posisi paling bawah */
+            font-weight: 400;
+        }
+        /* --- Form Modal Styles (from previous snippet) --- */
+        .modal-form-content { max-width: 800px !important; }
+        .surat-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .surat-header h4 { font-size: 1.3rem; font-weight: 700; text-decoration: underline; margin-bottom: 5px; }
+        .surat-header p { font-size: 0.9rem; font-style: italic; }
+        .surat-body { font-size: 0.95rem; line-height: 1.6; color: #000; }
+        .surat-destination { float: right; margin-bottom: 20px; width: 40%; }
+        .surat-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .surat-label { width: 140px; font-weight: 600; flex-shrink: 0; }
+        .surat-input { flex-grow: 1; border: none; border-bottom: 1px dotted #333; padding: 2px 5px; outline: none; background: transparent; font-family: inherit; }
+        .surat-section-title { font-weight: 700; margin-top: 15px; margin-bottom: 5px; text-decoration: underline; }
+        .attachment-list { list-style: none; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .attachment-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+        .surat-footer-actions { margin-top: 30px; display: flex; gap: 10px; justify-content: center; border-top: 1px solid #eee; padding-top: 20px; }
+        .btn-action { padding: 10px 20px; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .btn-blue { background-color: #0d6efd; } .btn-green { background-color: #198754; } .btn-yellow { background-color: #ffc107; color: #000; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <img src="Lambang_Kota_Semarang.png" alt="Logo Semarang">
+            <div class="brand-text">
+                <h1>SIP KOTA SEMARANG</h1>
+                <p>Sistem Informasi Pertanahan</p>
+            </div>
+        </div>
+        <nav class="nav-links">
+            <a href="#">Login</a>
+            </div>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <video autoplay muted loop id="hero-video">
+            <source src="BG1.mp4" type="video/mp4">
+            Browser Anda tidak mendukung tag video.
+        </video>
+        <div class="glass-box">
+            <h2>Sistem Informasi Pertanahan</h2>
+            <p>Layanan informasi pertanahan Kota Semarang yang terintegrasi dengan layanan Kantor ATR/BPN Kota Semarang untuk mewujudkan kota yang cerdas.</p>
+        </div>
+    </section>
+
+    <section class="cards-container">
+        <div class="card" id="daftarLayananCard">
+            <div class="card-icon"><i class="fas fa-map-marked-alt"></i></div>
+            <h3>Daftar Layanan</h3>
+            <p>Mudah Daftar, Mudah Dapatkan Layanan! Klik untuk Pendaftaran dan Cari Berkas.</p>
+        </div>
+
+        <div class="card" id="layananPertanahanCard">
+            <div class="card-icon"><i class="fas fa-lightbulb"></i></div>
+            <h3>Layanan Pertanahan</h3>
+            <p>Klik untuk melihat daftar <b>Jenis Pelayanan Pertanahan</b> yang tersedia di kantor kami.</p>
+        </div>
+
+        <div class="card" id="permasalahanCard">
+            <div class="card-icon"><i class="far fa-newspaper"></i></div>
+            <h3>Permasalahan Pertanahan</h3>
+            <p>Berita Terkini: Informasi mengenai berita pertanahan dan video infografis</p>
+        </div>
+
+        <div class="card" id="tentangKamiCard">
+            <div class="card-icon"><i class="fas fa-city"></i></div>
+            <h3>Tentang Kami</h3>
+            <p>Klik untuk melihat Profil, Visi-Misi, Struktur Organisasi, dan Maklumat Pelayanan.</p>
+        </div>
+    </section>
+
+    <section class="app-links-container">
+        <h3>Inovasi Digital untuk Membangun Tata Ruang dan Pertanahan yang Berkualitas.</h3>
+        <div class="app-link-row">
+            <a href="https://bhumi.atrbpn.go.id/" target="_blank" title="BHUMI ATR/BPN">
+                <div class="app-icon-wrapper bhumi-bg">
+                    <img src="bhumi-logo-type-color.png" alt="Logo BHUMI">
+                </div>
+            </a>
+            <a href="https://www.atrbpn.go.id/sentuh-tanahku" target="_blank" title="SENTUH TANAHKU">
+                <div class="app-icon-wrapper sentuh-bg">
+                    <img src="Sentuh Tanahku.png" alt="Logo Sentuh Tanahku" style="border-radius: 50%;">
+                </div>
+            </a>
+            <a href="https://gistaru.atrbpn.go.id/" target="_blank" title="GISTARU">
+                <div class="app-icon-wrapper gistaru-bg">
+                    <img src="Gistaru.png" alt="Logo GISTARU">
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-left-group">
+                <div class="office-img-wrapper">
+                    <img src="Kantah Kota Semarang.png" alt="Logo Kantor Pertanahan">
+                </div>
+                <div class="office-info">
+                    <h4>Kantor Pertanahan Kota Semarang</h4>
+                    <p><i class="fas fa-map-marker-alt"></i> Jl. Ki Mangunsarkoro No.23, Karangkidul, Semarang Tengah</p>
+                    <p style="padding-left: 25px;">Kota Semarang, Jawa Tengah 50136</p>
+                    <p><i class="fas fa-phone-alt"></i> (024) 8316594</p>
+                    <p><i class="fas fa-envelope"></i> Surat : kantah.semarang@atrbpn.go.id</p>
+                </div>
+            </div>
+
+            <div class="footer-right-group">
+                <div class="social-row">
+                    <div class="social-label">Ikuti Kami:</div>
+                    <div class="social-icons">
+                        <a href="https://www.facebook.com/share/1AZjDgQou8/?mibextid=wwXIfr" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/kantahkotasemarang?igsh=Z2hrYjc5bmMxNGo2" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="https://x.com/kantahkotasmg?s=21" target="_blank" title="Twitter / X"><i class="fab fa-twitter"></i></a>
+                        <a href="https://youtube.com/@kantorpertanahankotasemarang?si=u3iG7xwzUSLULtXB" target="_blank" title="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="https://www.tiktok.com/@kantahkotasemarang1?_r=1&_t=ZS-91t5sNB0zQ5" target="_blank" title="TikTok"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+                <div class="map-placeholder">
+                    <iframe 
+                        src="https://maps.google.com/maps?q=Kantor+Pertanahan+Kota+Semarang,+Jl.+Ki+Mangunsarkoro+No.23&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+        </div>
+        <section class="map-section">
+
+    <h2 class="map-title">Peta Interaktif Pertanahan Kota Semarang</h2>
+
+    <div class="map-grid">
+
+        <!-- PETA 3D -->
+        <div class="map-card">
+            <h3>Peta 3D Kota Semarang</h3>
+            <iframe 
+                src="file:///E:/AhistaYustisiana/UAS_KOTA%20SEMARANG/UAS_KOTA%20SEMARANG/SIP%20Kota%20Semarang/SIP%20Kota%20Semarang/Project4/Project4/peta3D/Peta3D_KotaSemarang.html"
+                loading="lazy">
+            </iframe>
+            <p class="map-desc">
+                Peta 3D pada web SIP Kota Semarang menyajikan informasi spasial dalam bentuk visualisasi tiga dimensi yang memuat data penggunaan tanah, jaringan jalan, jaringan sungai, serta zonasi Rencana Tata Ruang Wilayah (RTRW). Melalui tampilan ini, masyarakat dapat melihat keterkaitan antara kondisi fisik wilayah dan pola pemanfaatan ruang secara lebih nyata, termasuk hubungan antara aksesibilitas, sistem aliran sungai, dan peruntukan lahan pada berbagai kawasan. Visualisasi tiga dimensi ini membantu pengguna memahami potensi pengembangan wilayah, risiko lingkungan, serta kesesuaian pemanfaatan ruang terhadap rencana tata ruang yang berlaku secara lebih komprehensif dan mudah dipahami.
+        </div>
+
+        <!-- PETA 2D -->
+        <div class="map-card">
+            <h3>Peta 2D Tata Ruang dan Pertanahan</h3>
+            <iframe 
+                src="file:///E:/AhistaYustisiana/UAS_KOTA%20SEMARANG/UAS_KOTA%20SEMARANG/SIP%20Kota%20Semarang/SIP%20Kota%20Semarang/Project4/Project4/Peta2D/index.html#12/-7.0346/110.3785"
+                loading="lazy">
+            </iframe>
+            <p class="map-desc">
+                Peta 2D pada web SIP Kota Semarang berfungsi sebagai media utama penyajian data spasial yang bersifat informatif dan terstruktur. Peta ini menampilkan batas bidang tanah, zonasi Rencana Tata Ruang Wilayah (RTRW), serta sebaran infrastruktur dan fasilitas pendukung. Melalui peta 2D, masyarakat dapat memperoleh informasi mengenai status dan peruntukan lahan secara jelas dan akurat, sehingga memudahkan proses pencarian lokasi, pemahaman kebijakan tata ruang, serta pengambilan keputusan yang berkaitan dengan pemanfaatan dan pengelolaan pertanahan.
+            </p>
+        </div>
+
+    </div>
+</section>
+        
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn login-close">×</span>
+            <h3>MASUK KE SISTEM</h3>
+            <form class="login-form">
+                <label for="username"><b>Username</b></label>
+                <input type="text" placeholder="Masukkan Username Anda" name="username" class="form-control" required>
+                <br>
+                <label for="password"><b>Password</b></label>
+                <input type="password" placeholder="Masukkan Password Anda" name="password" class="form-control" required>
+                <button type="submit" class="btn-submit">LOGIN</button>
+            </form>
+            <div class="register-link">
+                Belum punya akun? <a href="#">Daftar Sekarang (Register)</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="serviceModal" class="modal">
+        <div class="modal-content modal-service-content">
+            <span class="close-btn service-close">×</span>
+            <h3>LAYANAN PERTANAHAN</h3>
+            <div class="tab-container">
+                <button class="tab-btn active" onclick="openTab('pendaftaran')">Pendaftaran</button>
+                <button class="tab-btn" onclick="openTab('cariBerkas')">Cari Berkas</button>
+            </div>
+            <div id="pendaftaran" class="tab-content" style="display: block;">
+                <div class="form-group">
+                    <label><b>Pilih Layanan</b></label>
+                    <select id="serviceType" class="form-control" onchange="checkServiceType()">
+                        <option value="">-- Pilih Layanan --</option>
+                        <option value="jualbeli">Jual Beli</option>
+                        <option value="pewarisan">Pewarisan</option>
+                        <option value="tukar">Tukar Menukar</option>
+                        <option value="lelang">Lelang</option>
+                        <option value="hibah">Hibah</option>
+                        <option value="hakbersama">Pembagian Hak Bersama</option>
+                        <option value="pemasukan_perusahaan">Pemasukan Kedalam Perusahaan</option>
+                        <option value="pemecahan">Pemecahan</option>
+                        <option value="pemisahan">Pemisahan</option>
+                        <option value="penggabungan">Penggabungan</option>
+                        <option value="konversi">Konversi</option>
+                        <option value="wakaf">Wakaf</option>
+                        <option value="phm_perorangan">Pemberian Hak Milik Perorangan</option>
+                        <option value="phm_badan">Pemberian Hak Milik Badan Hukum</option>
+                        <option value="phgu_perorangan">Pemberian Hak Guna Usaha Perorangan</option>
+                        <option value="phgu_badan">Pemberian Hak Guna Usaha Badan Hukum</option>
+                        <option value="phgb_perorangan">Pemberian Hak Guna Bangunan Perorangan</option>
+                        <option value="phgb_badan">Pemberian Hak Guna Bangunan Badan Hukum</option>
+                        <option value="ph_wakaf">Pemberian Hak Tanah Wakaf</option>
+                        <option value="pmhgu_perorangan">Pembaruan Hak Guna Usaha Perorangan</option>
+                        <option value="pmhgu_badan">Pembaruan Hak Guna Usaha Badan Hukum</option>
+                        <option value="pmhgb_perorangan">Pembaruan Hak Guna Bangunan Perorangan</option>
+                        <option value="pmhgb_badan">Pembaruan Hak Guna Bangunan Badan Hukum</option>
+                        <option value="pmhp_perorangan">Pembaruan Hak Pakai Perorangan WNI</option>
+                        <option value="perpanjangan_hgu">Perpanjangan Hak Guna Usaha</option>
+                        <option value="perubahan_hak">Perubahan Hak</option>
+                        <option value="wakaf_terdaftar">Wakaf Dari Tanah Terdaftar</option>
+                        <option value="pengukuran_batas">Pengukuran Pengembalian Batas</option>
+                        <option value="pengukuran_luas">Pengukuran Untuk Mengetahui Luas</option>
+                        <option value="ganti_hilang">Penggantian Sertifikat Karena Hilang</option>
+                        <option value="ganti_rusak">Penggantian Sertifikat Karena Rusak</option>
+                        <option value="ganti_blanko">Penggantian Sertifikat Karena Blanko Lama</option>
+                        <option value="pengecekan">Pengecekan Sertifikat</option>
+                        <option value="skpt">Surat Keterangan Pendaftaran tanah</option>
+                        <option value="blokir">Blokir</option>
+                        <option value="sita">Sita</option>
+                        <option value="ht">Pendaftaran Hak Tanggungan</option>
+                        <option value="roya">Roya</option>
+                        <option value="peralihan_ht">Peralihan Hak Tanggungan</option>
+                        <option value="perubahan_kreditur">Perubahan Kreditur</option>
+                        <option value="hm_sarusun">Pendaftaran Hak Milik Satuan Rumah Susun</option>
+                        <option value="perpanjangan_hm_sarusun">Perpanjangan Hak Milik Satuan Rumah Susun</option>
+                    </select>
+                </div>
+                <div id="jualBeliInfo" class="requirements-box">
+                    <h4>Peralihan Hak Jual Beli</h4>
+                    <h5>Persyaratan:</h5>
+                    <ol>
+                        <li>Formulir permohonan yang sudah diisi dan ditandatangani pemohon atau kuasanya diatas materai cukup.</li>
+                        <li>Surat kuasa apabila dikuasakan.</li>
+                        <li>Fotokopi identitas pemohon (KTP,KK) dan kuasa apabila dikuasakan, yang telah dicocokkan dengan aslinya oleh petugas loket.</li>
+                        <li>Fotokopi akta pendirian dan pengesahan badan hukum yang telah dicocokkan dengan aslinya oleh petugas loket, bagi badan hukum.</li>
+                        <li>Sertifikat Asli.</li>
+                        <li>Akta jual beli dari PPAT.</li>
+                        <li>Fotokopi KTP dan para pihak penjual-pembeli dan atau kuasanya.</li>
+                        <li>Ijin pemindahan hak apabila di dalam sertifikat / keputusannya dicantumkan tanda yang menyatakan bahwa hak tersebut hanya boleh dipindahtangankan jika telah diperoleh ijin dari instansi yang berwenang.</li>
+                        <li>Fotokopi SPPT dan PBB tahun berjalan yang telah dicocokkan dengan aslinya oleh petugas loket, penyerahan bukti SSB (BPHTB) dan bukti bayar uang pemasukan (pada saat pendaftaran hak).</li>
+                    </ol>
+                </div>
+            </div>
+            <div id="cariBerkas" class="tab-content">
+                <div class="form-group">
+                    <label><b>Nomor Berkas</b></label>
+                    <input type="text" class="form-control" placeholder="Contoh: 10293">
+                </div>
+                <div class="form-group">
+                    <label><b>Tahun Berkas</b></label>
+                    <input type="text" class="form-control" placeholder="Contoh: 2024">
+                </div>
+                <div class="recaptcha-box">
+                    <input type="checkbox" class="recaptcha-checkbox">
+                    <span class="recaptcha-text">I'm not a robot</span>
+                    <div class="recaptcha-logo">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>reCAPTCHA</span>
+                    </div>
+                </div>
+                <button class="btn-submit">Cari Berkas</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="layananListModal" class="modal">
+        <div class="modal-content modal-list-content">
+            <span class="close-btn list-close">×</span>
+            <h3 class="list-title">DAFTAR JENIS LAYANAN</h3>
+            <div class="service-list-container">
+                <table class="service-table">
+                    <tr id="btnBlokir"><td>Blokir/Cabut Blokir/Sita/Cabut Sita</td></tr>
+                    <tr><td>Cessie/Peralihan Hak Tanggungan</td></tr>
+                    <tr><td>Ganti Blanko</td></tr>
+                    <tr><td>Ganti Kelurahan</td></tr>
+                    <tr><td>Ganti Nama Sertipikat Hak Atas Tanah dan Hak Milik Atas Rumah Susun</td></tr>
+                    <tr><td>Merger Hak Tanggungan</td></tr>
+                    <tr><td>Pelunasan PPH dan atau BPHTB</td></tr>
+                    <tr id="btnPembaruanHak"><td>Pembaruan Hak</td></tr>
+                    <tr><td>Pemecahan - Penggabungan - Pemisahan</td></tr>
+                    <tr><td>Pendaftaran SK</td></tr>
+                    <tr><td>Pengukuran</td></tr>
+                    <tr><td>Peralihan Hak (Jual Beli - Waris - Hibah - Pembagian Hak Bersama - Lelang - Tukar)</td></tr>
+                    <tr><td>Permohonan SK</td></tr>
+                    <tr><td>Perpanjangan Hak</td></tr>
+                    <tr><td>Pertimbangan Teknis Pertanahan</td></tr>
+                    <tr><td>Perubahan Hak (Peningkatan Hak/ Penurunan Hak)</td></tr>
+                    <tr><td>Plotting Tata Ruang</td></tr>
+                    <tr><td>Roya (Penghapusan Hak Tanggungan)</td></tr>
+                    <tr><td>Sertipikat Pengganti Karena Hilang</td></tr>
+                    <tr><td>Sertipikat Pengganti Karena Rusak</td></tr>
+                    <tr><td>Surat Keterangan Pendaftaran Tanah</td></tr>
+                    <tr><td>Surat Keterangan Tanah</td></tr>
+                    <tr><td>Zona Nilai Tanah</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailPembaruanHakModal" class="modal">
+        <div class="modal-content modal-detail-content">
+            <div class="detail-header">
+                <span>Informasi Pelayanan Pembaruan Hak</span>
+                <span class="close-btn white-close-btn detail-close" style="position: static;">×</span>
+            </div>
+            
+            <div class="modal-body-padding">
+                <div class="detail-title">Persyaratan Pendaftaran :</div>
+                <ol class="detail-list">
+                    <li>Formulir permohonan yang sudah diisi lengkap</li>
+                    <li>Surat Kuasa apabila dikuasakan</li>
+                    <li>Fotocopy KTP Identitas pemohon dan kuasa apabila dikuasakan, yang telah dicocokkan dengan aslinya oleh petugas loket</li>
+                    <li>Fotocopy Kartu Keluarga identitas pemohon dan kuasa apabila dikuasakan, yang telah dicocokkan dengan aslinya oleh petugas loket</li>
+                    <li>Bukti perolehan tanah/Alas Hak/Sertipikat</li>
+                    <li>Surat pernyataan pemohon mengenai jumlah bidang dan status tanah-tanah yang telah dimiliki</li>
+                    <li>Foto copy SPPT PBB Tahun berjalan yang telah dicocokkan dengan aslinya oleh petugas loket, penyerahan bukti SSB (BPHTB) dan bukti bayar uang pemasukan (pada saat pendaftaran hak)</li>
+                    <li>Melampirkan bukti SSP/PPh sesuai dengan ketentuan</li>
+                    <li>Fotocopy Tanda Daftar Perusahaan, Akta Pendirian dan Pengesahan Badan Hukum yang telah dicocokkan dengan aslinya oleh petugas loket (bagi Badan Hukum)</li>
+                    <li>Ijin Lokasi atau Surat Ijin Penunjukan Penggunaan Tanah (bagi Badan Hukum)</li>
+                    <li>Proposal/Rencana Pengusahaan Tanah (bagi Badan Hukum)</li>
+                </ol>
+                <p class="detail-note">Klik tombol dibawah untuk membuat dan mengunduh Formulir</p>
+                <button class="btn-eform" id="openFormPembaruan">BUAT E-FORMULIR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailBlokirModal" class="modal">
+        <div class="modal-content modal-detail-content">
+            <div class="detail-header">
+                <span>Informasi Pelayanan Pencatatan Blokir/ Cabut Blokir/ Pencatatan Sita/ Cabut Sita</span>
+                <span class="close-btn white-close-btn detail-blokir-close" style="position: static;">×</span>
+            </div>
+            <div class="modal-body-padding">
+                <div class="detail-title">Persyaratan Pendaftaran :</div>
+                <ol class="detail-list">
+                    <li>Formulir permohonan yang sudah diisi lengkap</li>
+                    <li>Surat Kuasa apabila dikuasakan</li>
+                    <li>Fotocopy KTP</li>
+                    <li>Fotokopi Kartu Keluarga</li>
+                    <li>Fotocopy Akta Pendirian dan Pengesahan Badan Hukum, bagi badan hukum</li>
+                    <li>Dokumen pendukung pemblokiran (permintaan Peradilan dan/atau permintaan aparat penegak hukum, perorangan atau badan hukum yang menunjukkan bukti kepemilikan berupa Sertipikat asli dan/atau bukti kepemilikan lainnya).</li>
+                </ol>
+                <p class="detail-note">Klik tombol dibawah untuk membuat dan mengunduh Formulir</p>
+                <button class="btn-eform" id="openFormBlokir">BUAT E-FORMULIR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="permasalahanModal" class="modal">
+        <div class="modal-content modal-news-content">
+            <span class="close-btn permasalahan-close">×</span>
+            <h3>PERMASALAHAN PERTANAHAN</h3>
+            
+            <div class="tab-container">
+                <button class="tab-btn active" onclick="openPermasalahanTab('infografisTab')">Infografis</button>
+                <button class="tab-btn" onclick="openPermasalahanTab('beritaTab')">Berita Pertanahan</button>
+                <button class="tab-btn" onclick="openPermasalahanTab('pengumumanTab')">Pengumuman</button>
+            </div>
+
+            <div id="infografisTab" class="tab-content" style="display: block;">
+                <div style="margin-bottom: 30px; text-align: center;">
+                    <h4 style="text-align: left; margin-bottom: 15px;">Update Instagram Terkini</h4>
+                    <blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="https://www.instagram.com/p/DRvz_6zEik8/" data-instgrm-version="14" style=" background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
+                    </blockquote> 
+                    <script async src="//www.instagram.com/embed.js"></script>
+                </div>
+
+                <div class="news-grid">
+                    <div class="news-card" style="cursor: default;">
+                        <div class="video-container" style="margin: 0; border-radius: 8px 8px 0 0;">
+                            <video controls>
+                                <source src="REFORMA AGRARIA HARAPAN BARU UNTUK PETANI KECIL.mp4" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        </div>
+                        <div class="news-body">
+                            <h4 class="news-title">REFORMA AGRARIA HARAPAN BARU UNTUK PETANI KECIL</h4>
+                        </div>
+                    </div>
+                    <div class="news-card" style="cursor: default;">
+                        <div class="video-container" style="margin: 0; border-radius: 8px 8px 0 0;">
+                            <video controls>
+                                <source src="KALAU SAWAH TERUS JADI PERUMAHAN BESOK MAKAN APA.mp4" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        </div>
+                        <div class="news-body">
+                            <h4 class="news-title">KALAU SAWAH TERUS JADI PERUMAHAN, BESOK MAKAN APA?</h4>
+                        </div>
+                    </div>
+                    <div class="news-card" style="cursor: default;">
+                        <div class="video-container" style="margin: 0; border-radius: 8px 8px 0 0;">
+                            <video controls>
+                                <source src="DARI PATOK KE SERTIPIKAT MENUJU INDONESIA LENGKAP.mp4" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        </div>
+                        <div class="news-body">
+                            <h4 class="news-title">DARI PATOK KE SERTIPIKAT: MENUJU INDONESIA LENGKAP</h4>
+                        </div>
+                    </div>
+                    <div class="news-card" style="cursor: default;">
+                        <div class="video-container" style="margin: 0; border-radius: 8px 8px 0 0;">
+                            <video controls>
+                                <source src="TANAH BERSERTIPIKAT, HIDUP LEBIH BERMARTABAT.mp4" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        </div>
+                        <div class="news-body">
+                            <h4 class="news-title">TANAH BERSERTIPIKAT, HIDUP LEBIH BERMARTABAT</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="beritaTab" class="tab-content">
+                <h4 style="margin-bottom: 15px;">Berita Video Terkini</h4>
+                <div class="video-container">
+                    <iframe width="560" height="315" src="BPN Kota Semarang Digugat Mantan Anggota DPR RI.mp4" title="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                </div>
+                 <p style="margin-top: 15px; color: #666;">Saksikan video liputan terbaru mengenai kegiatan dan layanan pertanahan.</p>
+
+                <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+                <h4 style="margin-bottom: 15px;">Berita 2</h4>
+                <div style="max-width: 100%; margin-bottom: 20px;">
+                    <a href="https://www.instagram.com/p/DRyM9N-ksDs/?igsh=OG10a2p4d3BuNjR6" target="_blank" title="Klik untuk melihat di Instagram">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Instagram_logo_2016.svg/2048px-Instagram_logo_2016.svg.png" 
+                             alt="Berita Instagram" 
+                             style="width: 100px; max-width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.3s;">
+                    </a>
+                    <p style="margin-top: 10px; font-size: 0.9rem; color: #444;">
+                        <a href="https://www.instagram.com/p/DRyM9N-ksDs/?igsh=OG10a2p4d3BuNjR6" target="_blank" style="text-decoration: none; color: var(--primary-color); font-weight: 600;">
+                            <i class="fab fa-instagram" style="color: #E1306C;"></i> Klik gambar atau link ini untuk melihat detail berita di Instagram.
+                        </a>
+                    </p>
+                </div>
+            </div>
+
+            <div id="pengumumanTab" class="tab-content">
+                <h4 style="margin-bottom: 20px; font-weight: 700; color: #333;">Pengumuman Terbaru</h4>
+                
+                <div class="announcement-grid">
+                    
+                    <a href="https://www.instagram.com/p/DRvjSulElEF/?igsh=MTg4YnVwdG82d2toaA==" target="_blank" class="ann-card">
+                        <div class="ann-img-wrapper">
+                            <img src="WhatsApp Image 2025-12-03 at 15.30.38_9c77e5ec.png" alt="Reformasi Hukum" class="ann-img-real">
+                        </div>
+                        <div class="ann-body">
+                            <div class="ann-title">Pengumuman Kementerian ATR/BPN meraih apresiasi dari Kementerian Hukum dalam melaksanakan Reformasi Hukum</div>
+                            <div class="ann-date">17/11/2025</div>
+                        </div>
+                    </a>
+
+                    <a href="https://www.instagram.com/p/DRsyNFKktKp/?igsh=MTFjcjdpZHZuMHU2OQ==" target="_blank" class="ann-card">
+                        <div class="ann-img-wrapper">
+                            <img src="WhatsApp Image 2025-12-03 at 15.29.14_73ed2402.png" alt="Upacara Hari Korpri" class="ann-img-real">
+                        </div>
+                        <div class="ann-body">
+                            <div class="ann-title">Pengumuman Pelayanan Pertanahan Sehubungan dengan Upacara Peringatan Hari Korpri</div>
+                            <div class="ann-date">30/09/2025</div>
+                        </div>
+                    </a>
+
+                    <div class="ann-card" id="btnNewsSurvei" style="cursor: pointer;">
+                        <div class="ann-img-wrapper">
+                            <img src="WhatsApp Image 2025-12-03 at 15.34.28_2295e983.png" alt="Survei Kepuasan Masyarakat" class="ann-img-real">
+                        </div>
+                        <div class="ann-body">
+                            <div class="ann-title">Pengumuman Hasil Survei Kepuasan Masyarakat Terhadap Pelayanan Kantah Kota Semarang</div>
+                            <div class="ann-date">04/09/2025</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="newsDetailModal" class="modal">
+        <div class="modal-content modal-news-content">
+            <span class="close-btn detail-news-close">×</span>
+            <div class="news-detail-container">
+                <h2 class="news-detail-title">Hasil Survei Kepuasan Masyarakat</h2>
+                <small style="display:block; margin-bottom:10px; color:#666;">02/12/2025</small>
+                <img src="https://kot-semarang.atrbpn.go.id/images/berita/thumbnails/survei_kepuasan.jpg" alt="Flyer Hasil Survei" class="news-detail-image">
+                <div class="news-detail-text">
+                    <p>Hasil Survei Kepuasan Masyarakat menunjukkan bahwa pelayanan Kantor Pertanahan Kota Semarang mendapat penilaian Sangat Baik dari 124 responden. Capaian ini menjadi dorongan bagi kami untuk terus memberikan layanan terbaik bagi masyarakat.</p>
+                    <p>Terima kasih atas kepercayaan dan dukungan Anda. Kami berkomitmen untuk terus meningkatkan kualitas pelayanan yang cepat, mudah, dan transparan.</p>
+                </div>
+                <div class="news-hashtags">
+                    #KementerianATRBPN <br>
+                    #MelayaniProfesionalTerpercaya <br>
+                    #KantorPertanahanKotaSemarang <br>
+                    #SemarangSemakinHebat <br>
+                    #ATRBPNKiniLebihBaik
+                </div>
+                <div class="news-footer-info">
+                    <i class="fab fa-whatsapp"></i> WhatsApp Pengaduan: 0811-xxx-xxxx <br>
+                    <i class="fab fa-instagram"></i> Instagram: @kantahkotasemarang
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tentangKamiModal" class="modal">
+        <div class="modal-content modal-about-content">
+            <span class="close-btn about-close" style="color:white; z-index:20;">×</span>
+            <div class="about-header">
+                <h3>TENTANG KAMI</h3>
+            </div>
+            
+            <div class="about-nav">
+                <button class="about-nav-btn active" onclick="slideTab(0)">Sekilas Kami</button>
+                <button class="about-nav-btn" onclick="slideTab(1)">Visi & Misi</button>
+                <button class="about-nav-btn" onclick="slideTab(2)">Struktur Organisasi</button>
+                <button class="about-nav-btn" onclick="slideTab(3)">Maklumat Pelayanan</button>
+            </div>
+
+            <div class="slider-viewport">
+                <div class="slider-track" id="aboutTrack">
+                    
+                    <div class="slider-slide">
+                        <h4 class="slide-title">Sekilas Kantor Pertanahan Kota Semarang</h4>
+                        <div class="video-container" style="margin-bottom: 20px;">
+                            <video controls>
+                                <source src="PROFIL KANTOR PERTANAHAN KABUPATEN SEMARANG.mp4" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        </div>
+                        <div class="slide-text">
+                            <p>Kantor Pertanahan Kota Semarang merupakan instansi vertikal Kementerian Agraria dan Tata Ruang/Badan Pertanahan Nasional (ATR/BPN) yang berada di bawah dan bertanggung jawab kepada Menteri Agraria dan Tata Ruang/Kepala Badan Pertanahan Nasional melalui Kepala Kantor Wilayah Badan Pertanahan Nasional Provinsi Jawa Tengah.</p>
+                            <br>
+                            <p>Kami bertugas melaksanakan sebagian tugas dan fungsi Badan Pertanahan Nasional di wilayah Kota Semarang yang meliputi pengaturan dan penataan pertanahan, pendaftaran tanah, dan pemberdayaan masyarakat di bidang pertanahan.</p>
+                        </div>
+                    </div>
+
+                    <div class="slider-slide">
+                        <h4 class="slide-title">Visi & Misi</h4>
+                        
+                        <div class="vision-box">
+                            <h5 style="color:var(--primary-color); font-weight:700;">VISI</h5>
+                            <p>Terwujudnya Penataan Ruang dan Pengelolaan Pertanahan yang Terpercaya dan Berstandar Dunia dalam Melayani Masyarakat untuk Mendukung Tercapainya: "Indonesia Maju yang Berdaulat, Mandiri dan Berkepribadian Berlandaskan Gotong Royong"</p>
+                        </div>
+
+                        <div class="vision-box">
+                            <h5 style="color:var(--primary-color); font-weight:700;">MISI</h5>
+                            <ol style="margin-left:20px; font-size:0.9rem;">
+                                <li>Menyelenggarakan Penataan Ruang dan Pengelolaan Pertanahan yang Produktif, Berkelanjutan dan Berkeadilan;</li>
+                                <li>Menyelenggarakan Pelayanan Pertanahan dan Penataan Ruang yang Berstandar Dunia.</li>
+                            </ol>
+                        </div>
+
+                        <div class="vision-box">
+                            <h5 style="color:var(--primary-color); font-weight:700;">MOTO</h5>
+                            <p style="font-weight: 600; font-style: italic;">Melayani, Profesional, Terpercaya</p>
+                        </div>
+                    </div>
+
+                    <div class="slider-slide">
+                        <h4 class="slide-title">Struktur Organisasi</h4>
+                        <div style="text-align: center;">
+                            <img src="Strukturorg.png" alt="Struktur Organisasi Kantor Pertanahan Kota Semarang" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        </div>
+                    </div>
+
+                    <div class="slider-slide">
+                        <h4 class="slide-title">Maklumat Pelayanan</h4>
+                        <div style="background-color: #fff8e1; padding: 20px; border-left: 5px solid #ffc107; border-radius: 4px;">
+                            <p style="font-style: italic; font-weight: 600; text-align: center;">
+                                "Dengan ini kami menyatakan sanggup menyelenggarakan pelayanan sesuai standar pelayanan yang telah ditetapkan dan apabila tidak menepati janji, kami siap menerima sanksi sesuai peraturan perundang-undangan yang berlaku."
+                            </p>
+                            <p style="text-align: right; margin-top: 15px; font-weight: bold;">- Kepala Kantor Pertanahan Kota Semarang</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="semarangkumodal" class="modal">
+        <div class="modal-content modal-video-content">
+            <span class="close-btn video-close">×</span>
+            <h3>VIDEO PROFIL KOTA SEMARANG</h3>
+            <div class="video-container">
+                <video controls>
+                    <source src="Profil Kota Semarang.mp4" type="video/mp4">
+                    Browser Anda tidak mendukung tag video.
+                </video>
+            </div>
+        </div>
+    </div>
+
+    <div id="formPembaruanModal" class="modal">
+        <div class="modal-content modal-form-content">
+            <span class="close-btn form-pembaruan-close">×</span>
+            
+            <div class="surat-header">
+                <h4>SURAT PERMOHONAN</h4>
+                <p>(Untuk Permohonan Perorangan/Mandiri)</p>
+            </div>
+
+            <div class="surat-body">
+                <div class="surat-destination">
+                    Kepada Yth. :<br>
+                    Sdr. Kepala Kantor Pertanahan<br>
+                    Kota Semarang<br>
+                    di Semarang
+                </div>
+                <div style="clear: both;"></div>
+
+                <p>Dengan Hormat,<br>Yang bertanda tangan di bawah ini, Saya :</p>
+
+                <div class="surat-row">
+                    <div class="surat-label">Nama</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama pemilik tanah">
+                    <div class="surat-label" style="width: 50px; text-align: center;">NIK</div>
+                    <input type="text" class="surat-input" placeholder="Isi NIK pemilik tanah">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Umur</div>
+                    <input type="text" class="surat-input" placeholder="Isi umur pemilik tanah">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Pekerjaan</div>
+                    <input type="text" class="surat-input" placeholder="Isi pekerjaan">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Nomor Telepon</div>
+                    <input type="text" class="surat-input" placeholder="Isi Nomor Telepon">
+                    <div class="surat-label" style="width: 100px; text-align: center;">Alamat Email</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat email">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Alamat</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat pemilik tanah">
+                </div>
+
+                <p style="margin-top: 15px;">Dalam hal ini bertindak untuk dan atas nama diri sendiri untuk ini mengajukan permohonan : <b>PEMBARUAN HAK</b></p>
+                <p>Atas bidang tanah/ tanah negara :</p>
+
+                <div class="surat-row">
+                    <div class="surat-label">Terletak</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat bidang tanah">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Nomor Hak</div>
+                    <input type="text" class="surat-input" placeholder="Isi Nomor Hak">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Kelurahan</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama kelurahan">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Kecamatan</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama kecamatan">
+                </div>
+
+                <div class="surat-section-title">Lampiran Dokumen:</div>
+                <ul class="attachment-list">
+                    <li><input type="checkbox"> Formulir permohonan yang sudah diisi lengkap</li>
+                    <li><input type="checkbox"> Surat Kuasa apabila dikuasakan</li>
+                    <li><input type="checkbox"> Fotocopy KTP Identitas pemohon dan kuasa</li>
+                    <li><input type="checkbox"> Fotocopy Kartu Keluarga</li>
+                    <li><input type="checkbox"> Bukti perolehan tanah/Alas Hak/Sertipikat</li>
+                    <li><input type="checkbox"> Surat pernyataan pemohon mengenai jumlah bidang...</li>
+                    <li><input type="checkbox"> Foto copy SPPT PBB Tahun berjalan...</li>
+                    <li><input type="checkbox"> Melampirkan bukti SSP/PPh sesuai ketentuan</li>
+                    <li><input type="checkbox"> Fotocopy Tanda Daftar Perusahaan (jika ada)</li>
+                    <li><input type="checkbox"> Ijin Lokasi (jika ada)</li>
+                    <li><input type="checkbox"> Proposal/Rencana Pengusahaan Tanah (jika ada)</li>
+                </ul>
+
+                <div class="surat-footer-actions">
+                    <button class="btn-action btn-blue"><i class="fas fa-download"></i> DOWNLOAD FORMULIR KOSONG</button>
+                    <button class="btn-action btn-green"><i class="fas fa-print"></i> CETAK FORMULIR</button>
+                    <button class="btn-action btn-yellow"><i class="fas fa-redo"></i> RESET FORM</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="formBlokirModal" class="modal">
+        <div class="modal-content modal-form-content">
+            <span class="close-btn form-blokir-close">×</span>
+            
+            <div class="surat-header">
+                <h4>SURAT PERMOHONAN</h4>
+                <p>(Untuk Permohonan Perorangan/Mandiri)</p>
+            </div>
+
+            <div class="surat-body">
+                <div class="surat-destination">
+                    Kepada Yth. :<br>
+                    Sdr. Kepala Kantor Pertanahan<br>
+                    Kota Semarang<br>
+                    di Semarang
+                </div>
+                <div style="clear: both;"></div>
+
+                <p>Dengan Hormat,<br>Yang bertanda tangan di bawah ini, Saya :</p>
+
+                <div class="surat-row">
+                    <div class="surat-label">Nama</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama pemilik tanah">
+                    <div class="surat-label" style="width: 50px; text-align: center;">NIK</div>
+                    <input type="text" class="surat-input" placeholder="Isi NIK pemilik tanah">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Umur</div>
+                    <input type="text" class="surat-input" placeholder="Isi umur pemilik tanah">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Pekerjaan</div>
+                    <input type="text" class="surat-input" placeholder="Isi pekerjaan">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Nomor Telepon</div>
+                    <input type="text" class="surat-input" placeholder="Isi Nomor Telepon">
+                    <div class="surat-label" style="width: 100px; text-align: center;">Alamat Email</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat email">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Alamat</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat pemilik tanah">
+                </div>
+
+                <p style="margin-top: 15px;">Dalam hal ini bertindak untuk dan atas nama diri sendiri untuk ini mengajukan permohonan : <b>PENCATATAN BLOKIR/ CABUT BLOKIR/ PENCATATAN SITA/ CABUT SITA</b></p>
+                <p>Atas bidang tanah/ tanah negara :</p>
+
+                <div class="surat-row">
+                    <div class="surat-label">Terletak</div>
+                    <input type="text" class="surat-input" placeholder="Isi alamat bidang tanah">
+                </div>
+                <div class="surat-row">
+                    <div class="surat-label">Nomor Hak</div>
+                    <input type="text" class="surat-input" placeholder="Isi Nomor Hak">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Kelurahan</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama kelurahan">
+                    <div class="surat-label" style="width: 80px; text-align: center;">Kecamatan</div>
+                    <input type="text" class="surat-input" placeholder="Isi nama kecamatan">
+                </div>
+
+                <div class="surat-section-title">Lampiran Dokumen:</div>
+                <ul class="attachment-list">
+                    <li><input type="checkbox"> Formulir permohonan yang sudah diisi lengkap</li>
+                    <li><input type="checkbox"> Surat Kuasa apabila dikuasakan</li>
+                    <li><input type="checkbox"> Fotocopy KTP</li>
+                    <li><input type="checkbox"> Fotocopy Kartu Keluarga</li>
+                    <li><input type="checkbox"> Fotocopy Akta Pendirian dan Pengesahan Badan Hukum (jika ada)</li>
+                    <li><input type="checkbox"> Dokumen pendukung pemblokiran (putusan pengadilan/surat aparat penegak hukum/sertipikat asli)</li>
+                </ul>
+
+                <div style="margin-top: 20px; font-size: 0.8rem; color: #666;">
+                    <input type="checkbox" id="agree"> Saya menyetujui bahwa data yang saya masukkan adalah benar dan keterangan ini dibuat untuk dipergunakan sebagaimana mestinya dan untuk dipertanggung jawabkan.
+                </div>
+
+                <div class="surat-footer-actions">
+                    <button class="btn-action btn-blue"><i class="fas fa-download"></i> DOWNLOAD FORMULIR KOSONG</button>
+                    <button class="btn-action btn-green"><i class="fas fa-print"></i> CETAK FORMULIR</button>
+                    <button class="btn-action btn-yellow"><i class="fas fa-redo"></i> RESET FORM</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AMBIL ELEMENT MODAL ---
+        var loginModal = document.getElementById("loginModal");
+        var serviceModal = document.getElementById("serviceModal");
+        var listModal = document.getElementById("layananListModal");
+        var detailModal = document.getElementById("detailPembaruanHakModal");
+        var blokirModal = document.getElementById("detailBlokirModal");
+        var permasalahanModal = document.getElementById("permasalahanModal");
+        var newsDetailModal = document.getElementById("newsDetailModal");
+        var tentangKamiModal = document.getElementById("tentangKamiModal");
+        var videoModal = document.getElementById("semarangkumodal");
+        
+        // Modal Formulir Baru
+        var formPembaruanModal = document.getElementById("formPembaruanModal");
+        var formBlokirModal = document.getElementById("formBlokirModal");
+
+        // --- AMBIL ELEMENT PEMICU ---
+        var loginBtn = document.querySelector(".nav-links a"); 
+        var daftarLayananCard = document.getElementById("daftarLayananCard");
+        var layananPertanahanCard = document.getElementById("layananPertanahanCard"); 
+        var permasalahanCard = document.getElementById("permasalahanCard"); 
+        var tentangKamiCard = document.getElementById("tentangKamiCard");
+        var btnPembaruanHak = document.getElementById("btnPembaruanHak");
+        var btnBlokir = document.getElementById("btnBlokir");
+        var btnNewsSurvei = document.getElementById("btnNewsSurvei"); 
+        
+        // Pemicu Form Baru
+        var openFormPembaruan = document.getElementById("openFormPembaruan");
+        var openFormBlokir = document.getElementById("openFormBlokir");
+        
+        // --- AMBIL TOMBOL TUTUP ---
+        var closeLogin = document.querySelector(".login-close");
+        var closeService = document.querySelector(".service-close");
+        var closeList = document.querySelector(".list-close");
+        var closeDetail = document.querySelector(".detail-close");
+        var closeBlokir = document.querySelector(".detail-blokir-close");
+        var closePermasalahan = document.querySelector(".permasalahan-close");
+        var closeNewsDetail = document.querySelector(".detail-news-close");
+        var closeAbout = document.querySelector(".about-close");
+        var closeVideo = document.querySelector(".video-close");
+        
+        // Tutup Form Baru
+        var closeFormPembaruan = document.querySelector(".form-pembaruan-close");
+        var closeFormBlokir = document.querySelector(".form-blokir-close");
+
+        // FUNGSI MENUTUP SEMUA MODAL
+        function closeAllModals() {
+            loginModal.style.display = "none";
+            serviceModal.style.display = "none";
+            listModal.style.display = "none";
+            detailModal.style.display = "none";
+            blokirModal.style.display = "none";
+            permasalahanModal.style.display = "none";
+            newsDetailModal.style.display = "none";
+            tentangKamiModal.style.display = "none";
+            videoModal.style.display = "none";
+            formPembaruanModal.style.display = "none";
+            formBlokirModal.style.display = "none";
+        }
+
+        // --- EVENT LISTENERS ---
+        
+        // 1. Login
+        loginBtn.onclick = function(e) { e.preventDefault(); closeAllModals(); loginModal.style.display = "block"; }
+        closeLogin.onclick = function() { loginModal.style.display = "none"; }
+
+        // 2. Daftar Layanan
+        daftarLayananCard.onclick = function() { closeAllModals(); serviceModal.style.display = "block"; }
+        closeService.onclick = function() { serviceModal.style.display = "none"; }
+
+        // 3. Layanan Pertanahan (Daftar List)
+        layananPertanahanCard.onclick = function() { closeAllModals(); listModal.style.display = "block"; }
+        closeList.onclick = function() { listModal.style.display = "none"; }
+
+        // 4. Detail Pembaruan Hak
+        btnPembaruanHak.onclick = function() { listModal.style.display = "none"; detailModal.style.display = "block"; }
+        closeDetail.onclick = function() { detailModal.style.display = "none"; listModal.style.display = "block"; }
+
+        // 5. Detail Blokir
+        btnBlokir.onclick = function() { listModal.style.display = "none"; blokirModal.style.display = "block"; }
+        closeBlokir.onclick = function() { blokirModal.style.display = "none"; listModal.style.display = "block"; }
+
+        // 6. Permasalahan Pertanahan
+        permasalahanCard.onclick = function() { closeAllModals(); permasalahanModal.style.display = "block"; }
+        closePermasalahan.onclick = function() { permasalahanModal.style.display = "none"; }
+
+        // 7. Detail Berita Survei
+        if(btnNewsSurvei) {
+            btnNewsSurvei.onclick = function() { permasalahanModal.style.display = "none"; newsDetailModal.style.display = "block"; }
+        }
+        closeNewsDetail.onclick = function() { newsDetailModal.style.display = "none"; permasalahanModal.style.display = "block"; }
+
+        // 8. Tentang Kami
+        tentangKamiCard.onclick = function() { closeAllModals(); tentangKamiModal.style.display = "block"; slideTab(0); }
+        closeAbout.onclick = function() { tentangKamiModal.style.display = "none"; }
+        
+        // 9. Form Pembaruan Hak (NEW)
+        openFormPembaruan.onclick = function() { detailModal.style.display = "none"; formPembaruanModal.style.display = "block"; }
+        closeFormPembaruan.onclick = function() { formPembaruanModal.style.display = "none"; detailModal.style.display = "block"; }
+
+        // 10. Form Blokir (NEW)
+        openFormBlokir.onclick = function() { blokirModal.style.display = "none"; formBlokirModal.style.display = "block"; }
+        closeFormBlokir.onclick = function() { formBlokirModal.style.display = "none"; blokirModal.style.display = "block"; }
+
+        // Klik di luar area modal untuk menutup
+        window.onclick = function(event) {
+            if (event.target == loginModal || event.target == serviceModal || event.target == listModal || event.target == detailModal || event.target == blokirModal || event.target == permasalahanModal || event.target == newsDetailModal || event.target == tentangKamiModal || event.target == videoModal || event.target == formPembaruanModal || event.target == formBlokirModal) {
+                closeAllModals();
+            }
+        }
+
+        // --- LOGIKA TAB (DAFTAR LAYANAN) ---
+        function openTab(tabName) {
+            var i;
+            var x = document.getElementById("serviceModal").getElementsByClassName("tab-content");
+            var tablinks = document.getElementById("serviceModal").getElementsByClassName("tab-btn");
+            for (i = 0; i < x.length; i++) { x[i].style.display = "none"; }
+            for (i = 0; i < tablinks.length; i++) { tablinks[i].className = tablinks[i].className.replace(" active", ""); }
+            document.getElementById(tabName).style.display = "block";  
+            event.currentTarget.className += " active";
+        }
+
+        // --- LOGIKA TAB (PERMASALAHAN PERTANAHAN) ---
+        function openPermasalahanTab(tabName) {
+            var i;
+            var modalScope = document.getElementById("permasalahanModal");
+            var x = modalScope.getElementsByClassName("tab-content");
+            var tablinks = modalScope.getElementsByClassName("tab-btn");
+            for (i = 0; i < x.length; i++) { x[i].style.display = "none"; }
+            for (i = 0; i < tablinks.length; i++) { tablinks[i].className = tablinks[i].className.replace(" active", ""); }
+            document.getElementById(tabName).style.display = "block";  
+            event.currentTarget.className += " active";
+        }
+
+        // --- LOGIKA SLIDE TAB (TENTANG KAMI) ---
+        function slideTab(index) {
+            var track = document.getElementById("aboutTrack");
+            var btns = document.getElementsByClassName("about-nav-btn");
+            track.style.transform = "translateX(-" + (index * 25) + "%)";
+            for(var i=0; i<btns.length; i++) {
+                btns[i].className = btns[i].className.replace(" active", "");
+            }
+            btns[index].classList.add("active");
+        }
+
+        // --- LOGIKA DROPDOWN ---
+        function checkServiceType() {
+            var selectBox = document.getElementById("serviceType");
+            var selectedValue = selectBox.options[selectBox.selectedIndex].value;
+            var infoBox = document.getElementById("jualBeliInfo");
+            if (selectedValue === "jualbeli") { infoBox.style.display = "block"; } else { infoBox.style.display = "none"; }
+        }
+    </script>
+
+</body>
+</html>
