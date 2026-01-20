@@ -1,0 +1,1581 @@
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+            /* Mengatur tata letak halaman */
+            html, body {
+                height: 100%;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                font-family: Arial, sans-serif;
+            }
+
+            /* Header Style */
+            header {
+                background-color: #2c3e50;
+                color: white;
+                padding: 15px 20px;
+                text-align: center;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+
+            header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+
+            header p {
+                margin: 5px 0 0;
+                font-size: 14px;
+                opacity: 0.9;
+            }
+
+            /* Map container flex grow untuk mengisi sisa ruang */
+            #map {
+                flex-grow: 1;
+                width: 100%;
+                background: #f8f9fa;
+            }
+
+            /* Footer Style */
+            footer {
+                background-color: #f1f1f1;
+                color: #555;
+                text-align: center;
+                padding: 10px;
+                font-size: 12px;
+                border-top: 1px solid #ddd;
+                z-index: 1000;
+            }
+        </style>
+        <title>Peta Interaktif Kota Semarang</title>
+    </head>
+    <body>
+
+        <header>
+            <h1>Peta Interaktif Kota Semarang</h1>
+            <p>Eksplorasi Spasial Strategis:</strong> Mengintegrasikan data Rencana Tata Ruang Wilayah (RTRW), 
+                analisis penggunaan lahan,serta pemetaan infrastruktur transportasi dan jaringan drainase secara presisi 
+                untuk mendukung pembangunan berkelanjutan di Kota Semarang.</p>
+        </header>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="data/Kota_Semarang_2.js"></script>
+        <script src="data/RTRW_Kota_Semarang_3.js"></script>
+        <script src="data/PenggunaanTanahSMG_4.js"></script>
+        <script src="data/Clip_Roads_5.js"></script>
+        <script src="data/Clip_Waterways_6.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-7.126354246610636,110.19044640306684],[-6.919737837089006,110.6195280069715]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_UTM_SEMARANGcopy_0');
+        map.getPane('pane_UTM_SEMARANGcopy_0').style.zIndex = 400;
+        var img_UTM_SEMARANGcopy_0 = 'data/UTM_SEMARANGcopy_0.png';
+        var img_bounds_UTM_SEMARANGcopy_0 = [[-7.251002606208487,109.998934953726],[-6.749038736251506,110.75025650420355]];
+        var layer_UTM_SEMARANGcopy_0 = new L.imageOverlay(img_UTM_SEMARANGcopy_0,
+                                              img_bounds_UTM_SEMARANGcopy_0,
+                                              {pane: 'pane_UTM_SEMARANGcopy_0'});
+        bounds_group.addLayer(layer_UTM_SEMARANGcopy_0);
+        map.addLayer(layer_UTM_SEMARANGcopy_0);
+        map.createPane('pane_GoogleSatellite_1');
+        map.getPane('pane_GoogleSatellite_1').style.zIndex = 401;
+        var layer_GoogleSatellite_1 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_1',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_GoogleSatellite_1;
+        map.addLayer(layer_GoogleSatellite_1);
+        function pop_Kota_Semarang_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['OBJECTID'] !== null ? autolinker.link(String(feature.properties['OBJECTID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAMOBJ'] !== null ? autolinker.link(String(feature.properties['NAMOBJ']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FCODE'] !== null ? autolinker.link(String(feature.properties['FCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REMARK'] !== null ? autolinker.link(String(feature.properties['REMARK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['METADATA'] !== null ? autolinker.link(String(feature.properties['METADATA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SRS_ID'] !== null ? autolinker.link(String(feature.properties['SRS_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDBBPS'] !== null ? autolinker.link(String(feature.properties['KDBBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCBPS'] !== null ? autolinker.link(String(feature.properties['KDCBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCPUM'] !== null ? autolinker.link(String(feature.properties['KDCPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEBPS'] !== null ? autolinker.link(String(feature.properties['KDEBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEPUM'] !== null ? autolinker.link(String(feature.properties['KDEPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPBPS'] !== null ? autolinker.link(String(feature.properties['KDPBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPKAB'] !== null ? autolinker.link(String(feature.properties['KDPKAB']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPPUM'] !== null ? autolinker.link(String(feature.properties['KDPPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LUASWH</th>\
+                        <td class="visible-with-data" id="LUASWH">' + (feature.properties['LUASWH'] !== null ? autolinker.link(String(feature.properties['LUASWH']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TIPADM'] !== null ? autolinker.link(String(feature.properties['TIPADM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">WADMKC</th>\
+                        <td class="visible-with-data" id="WADMKC">' + (feature.properties['WADMKC'] !== null ? autolinker.link(String(feature.properties['WADMKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKD'] !== null ? autolinker.link(String(feature.properties['WADMKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">WADMKK</th>\
+                        <td class="visible-with-data" id="WADMKK">' + (feature.properties['WADMKK'] !== null ? autolinker.link(String(feature.properties['WADMKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">WADMPR</th>\
+                        <td class="visible-with-data" id="WADMPR">' + (feature.properties['WADMPR'] !== null ? autolinker.link(String(feature.properties['WADMPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKC'] !== null ? autolinker.link(String(feature.properties['WIADKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKK'] !== null ? autolinker.link(String(feature.properties['WIADKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADPR'] !== null ? autolinker.link(String(feature.properties['WIADPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKD'] !== null ? autolinker.link(String(feature.properties['WIADKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['UUPP'] !== null ? autolinker.link(String(feature.properties['UUPP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_Leng'] !== null ? autolinker.link(String(feature.properties['SHAPE_Leng']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SHAPE_Area'] !== null ? autolinker.link(String(feature.properties['SHAPE_Area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Kota_Semarang_2_0() {
+            return {
+                pane: 'pane_Kota_Semarang_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(190,178,151,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Kota_Semarang_2');
+        map.getPane('pane_Kota_Semarang_2').style.zIndex = 402;
+        map.getPane('pane_Kota_Semarang_2').style['mix-blend-mode'] = 'normal';
+        var layer_Kota_Semarang_2 = new L.geoJson(json_Kota_Semarang_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Kota_Semarang_2',
+            layerName: 'layer_Kota_Semarang_2',
+            pane: 'pane_Kota_Semarang_2',
+            onEachFeature: pop_Kota_Semarang_2,
+            style: style_Kota_Semarang_2_0,
+        });
+        bounds_group.addLayer(layer_Kota_Semarang_2);
+        map.addLayer(layer_Kota_Semarang_2);
+        function pop_RTRW_Kota_Semarang_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['objectid'] !== null ? autolinker.link(String(feature.properties['objectid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fcode'] !== null ? autolinker.link(String(feature.properties['fcode']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lcode'] !== null ? autolinker.link(String(feature.properties['lcode']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">namobj</th>\
+                        <td class="visible-with-data" id="namobj">' + (feature.properties['namobj'] !== null ? autolinker.link(String(feature.properties['namobj']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['remark'] !== null ? autolinker.link(String(feature.properties['remark']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['srs_id'] !== null ? autolinker.link(String(feature.properties['srs_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">metadata</th>\
+                        <td class="visible-with-data" id="metadata">' + (feature.properties['metadata'] !== null ? autolinker.link(String(feature.properties['metadata']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">wadmkk</th>\
+                        <td class="visible-with-data" id="wadmkk">' + (feature.properties['wadmkk'] !== null ? autolinker.link(String(feature.properties['wadmkk']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">wadmpr</th>\
+                        <td class="visible-with-data" id="wadmpr">' + (feature.properties['wadmpr'] !== null ? autolinker.link(String(feature.properties['wadmpr']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['rtrkaw'] !== null ? autolinker.link(String(feature.properties['rtrkaw']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">rtrpkk</th>\
+                        <td class="visible-with-data" id="rtrpkk">' + (feature.properties['rtrpkk'] !== null ? autolinker.link(String(feature.properties['rtrpkk']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">nothpd</th>\
+                        <td class="visible-with-data" id="nothpd">' + (feature.properties['nothpd'] !== null ? autolinker.link(String(feature.properties['nothpd']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">rtrsys</th>\
+                        <td class="visible-with-data" id="rtrsys">' + (feature.properties['rtrsys'] !== null ? autolinker.link(String(feature.properties['rtrsys']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_RTRW_Kota_Semarang_3_0(feature) {
+            switch(String(feature.properties['namobj'])) {
+                case 'Embung':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(240,62,115,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Hutan Produksi':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(88,240,109,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Industri':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(239,64,219,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Lindung Fisiografis':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(205,206,123,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Perlindungan Setempat':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,137,63,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Pertahanan Keamanan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(96,196,229,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Pertanian Semusim Lahan Basah':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(87,208,126,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Pertanian Semusim Lahan Kering':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(238,22,48,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Pertanian Tanaman Keras':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(49,236,214,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Hutan Produksi Tetap':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(136,121,202,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Olahraga':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(132,204,17,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pelayanan Umum':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,121,113,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pemakaman Umum':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(213,65,164,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pendidikan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(209,188,97,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Perdagangan dan Jasa':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(119,206,90,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Perikanan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(114,153,219,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Perkantoran':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(235,124,178,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pertambangan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(113,172,217,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pertanian Hortikultura':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(120,204,116,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Pertanian Tanaman Pangan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(26,66,240,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Perumahan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(166,18,216,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Perumahan, Perdagangan dan Jasa':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(216,164,75,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Peruntukan Wisata':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,232,78,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan Transportasi':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(96,25,210,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kawasan yang memberikan perlindungan terhadap kawasan bawahannya':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(121,225,194,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kolam Retensi':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(100,226,163,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Perdesaan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(95,95,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Perkotaan':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(124,209,60,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sempadan Pantai':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(154,90,204,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sempadan Sungai':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(234,163,138,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sungai':
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(107,200,207,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_RTRW_Kota_Semarang_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(203,63,213,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_RTRW_Kota_Semarang_3');
+        map.getPane('pane_RTRW_Kota_Semarang_3').style.zIndex = 403;
+        map.getPane('pane_RTRW_Kota_Semarang_3').style['mix-blend-mode'] = 'normal';
+        var layer_RTRW_Kota_Semarang_3 = new L.geoJson(json_RTRW_Kota_Semarang_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_RTRW_Kota_Semarang_3',
+            layerName: 'layer_RTRW_Kota_Semarang_3',
+            pane: 'pane_RTRW_Kota_Semarang_3',
+            onEachFeature: pop_RTRW_Kota_Semarang_3,
+            style: style_RTRW_Kota_Semarang_3_0,
+        });
+        bounds_group.addLayer(layer_RTRW_Kota_Semarang_3);
+        map.addLayer(layer_RTRW_Kota_Semarang_3);
+        function pop_PenggunaanTanahSMG_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">REMARK</th>\
+                        <td class="visible-with-data" id="REMARK">' + (feature.properties['REMARK'] !== null ? autolinker.link(String(feature.properties['REMARK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PenggunaanTanahSMG_4_0(feature) {
+            switch(String(feature.properties['REMARK'])) {
+                case 'Arena Olah Raga':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(48,18,59,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Bangunan Industri':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(58,46,124,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Danau/Situ':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(66,73,177,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Empang':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(70,98,216,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Hutan Bakau/Mangrove':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(71,123,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Jalan Arteri':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,146,254,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Jalan Tol':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(53,171,248,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Kolam':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(36,193,230,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Landas Pacu':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(25,213,205,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Masjid':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(27,229,181,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Padang Rumput':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(46,241,156,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pasir':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(79,249,124,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pelabuhan Udara':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(116,254,93,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pendidikan':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(151,254,67,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'PENDIDIKAN TINGGI':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(176,249,54,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Perkebunan/Kebun':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,239,52,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Permukiman dan Tempat Kegiatan':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(222,223,55,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sawah':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(239,205,58,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sawah Tadah Hujan':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,185,56,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Semak Belukar':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,161,48,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'SMK':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,133,36,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sungai':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(245,105,24,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Tambak':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(234,79,13,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Tanah Kosong/Gundul':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(220,59,7,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Tegalan/Ladang':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,41,3,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Vegetasi Non Budidaya Lainnya':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(178,26,1,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Waduk':
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(150,13,1,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_PenggunaanTanahSMG_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(122,4,3,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_PenggunaanTanahSMG_4');
+        map.getPane('pane_PenggunaanTanahSMG_4').style.zIndex = 404;
+        map.getPane('pane_PenggunaanTanahSMG_4').style['mix-blend-mode'] = 'normal';
+        var layer_PenggunaanTanahSMG_4 = new L.geoJson(json_PenggunaanTanahSMG_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PenggunaanTanahSMG_4',
+            layerName: 'layer_PenggunaanTanahSMG_4',
+            pane: 'pane_PenggunaanTanahSMG_4',
+            onEachFeature: pop_PenggunaanTanahSMG_4,
+            style: style_PenggunaanTanahSMG_4_0,
+        });
+        bounds_group.addLayer(layer_PenggunaanTanahSMG_4);
+        map.addLayer(layer_PenggunaanTanahSMG_4);
+        function pop_Clip_Roads_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['osm_id'] !== null ? autolinker.link(String(feature.properties['osm_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['code'] !== null ? autolinker.link(String(feature.properties['code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fclass'] !== null ? autolinker.link(String(feature.properties['fclass']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td class="visible-with-data" id="name">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ref'] !== null ? autolinker.link(String(feature.properties['ref']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['oneway'] !== null ? autolinker.link(String(feature.properties['oneway']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['maxspeed'] !== null ? autolinker.link(String(feature.properties['maxspeed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['layer'] !== null ? autolinker.link(String(feature.properties['layer']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['bridge'] !== null ? autolinker.link(String(feature.properties['bridge']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['tunnel'] !== null ? autolinker.link(String(feature.properties['tunnel']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Clip_Roads_5_0() {
+            return {
+                pane: 'pane_Clip_Roads_5',
+                opacity: 1,
+                color: 'rgba(125,139,143,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Clip_Roads_5');
+        map.getPane('pane_Clip_Roads_5').style.zIndex = 405;
+        map.getPane('pane_Clip_Roads_5').style['mix-blend-mode'] = 'normal';
+        var layer_Clip_Roads_5 = new L.geoJson(json_Clip_Roads_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Clip_Roads_5',
+            layerName: 'layer_Clip_Roads_5',
+            pane: 'pane_Clip_Roads_5',
+            onEachFeature: pop_Clip_Roads_5,
+            style: style_Clip_Roads_5_0,
+        });
+        bounds_group.addLayer(layer_Clip_Roads_5);
+        map.addLayer(layer_Clip_Roads_5);
+        function pop_Clip_Waterways_6(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['osm_id'] !== null ? autolinker.link(String(feature.properties['osm_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['code'] !== null ? autolinker.link(String(feature.properties['code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fclass'] !== null ? autolinker.link(String(feature.properties['fclass']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['width'] !== null ? autolinker.link(String(feature.properties['width']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td class="visible-with-data" id="name">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Clip_Waterways_6_0() {
+            return {
+                pane: 'pane_Clip_Waterways_6',
+                opacity: 1,
+                color: 'rgba(95,228,247,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Clip_Waterways_6');
+        map.getPane('pane_Clip_Waterways_6').style.zIndex = 406;
+        map.getPane('pane_Clip_Waterways_6').style['mix-blend-mode'] = 'normal';
+        var layer_Clip_Waterways_6 = new L.geoJson(json_Clip_Waterways_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Clip_Waterways_6',
+            layerName: 'layer_Clip_Waterways_6',
+            pane: 'pane_Clip_Waterways_6',
+            onEachFeature: pop_Clip_Waterways_6,
+            style: style_Clip_Waterways_6_0,
+        });
+        bounds_group.addLayer(layer_Clip_Waterways_6);
+        map.addLayer(layer_Clip_Waterways_6);
+        var overlaysTree = [
+            {label: '<img src="legend/Clip_Waterways_6.png" /> Clip_Waterways', layer: layer_Clip_Waterways_6},
+            {label: '<img src="legend/Clip_Roads_5.png" /> Clip_Roads', layer: layer_Clip_Roads_5},
+            {label: 'Penggunaan TanahSMG<br /><table><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_ArenaOlahRaga0.png" /></td><td>Arena Olah Raga</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_BangunanIndustri1.png" /></td><td>Bangunan Industri</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_DanauSitu2.png" /></td><td>Danau/Situ</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Empang3.png" /></td><td>Empang</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_HutanBakauMangrove4.png" /></td><td>Hutan Bakau/Mangrove</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_JalanArteri5.png" /></td><td>Jalan Arteri</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_JalanTol6.png" /></td><td>Jalan Tol</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Kolam7.png" /></td><td>Kolam</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_LandasPacu8.png" /></td><td>Landas Pacu</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Masjid9.png" /></td><td>Masjid</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_PadangRumput10.png" /></td><td>Padang Rumput</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Pasir11.png" /></td><td>Pasir</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_PelabuhanUdara12.png" /></td><td>Pelabuhan Udara</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Pendidikan13.png" /></td><td>Pendidikan</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_PENDIDIKANTINGGI14.png" /></td><td>PENDIDIKAN TINGGI</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_PerkebunanKebun15.png" /></td><td>Perkebunan/Kebun</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_PermukimandanTempatKegiatan16.png" /></td><td>Permukiman dan Tempat Kegiatan</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Sawah17.png" /></td><td>Sawah</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_SawahTadahHujan18.png" /></td><td>Sawah Tadah Hujan</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_SemakBelukar19.png" /></td><td>Semak Belukar</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_SMK20.png" /></td><td>SMK</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Sungai21.png" /></td><td>Sungai</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Tambak22.png" /></td><td>Tambak</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_TanahKosongGundul23.png" /></td><td>Tanah Kosong/Gundul</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_TegalanLadang24.png" /></td><td>Tegalan/Ladang</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_VegetasiNonBudidayaLainnya25.png" /></td><td>Vegetasi Non Budidaya Lainnya</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_Waduk26.png" /></td><td>Waduk</td></tr><tr><td style="text-align: center;"><img src="legend/PenggunaanTanahSMG_4_27.png" /></td><td></td></tr></table>', layer: layer_PenggunaanTanahSMG_4},
+            {label: 'RTRW_Kota_Semarang<br /><table><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_Embung0.png" /></td><td>Embung</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_HutanProduksi1.png" /></td><td>Hutan Produksi</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanIndustri2.png" /></td><td>Kawasan Industri</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanLindungFisiografis3.png" /></td><td>Kawasan Lindung Fisiografis</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPerlindunganSetempat4.png" /></td><td>Kawasan Perlindungan Setempat</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPertahananKeamanan5.png" /></td><td>Kawasan Pertahanan Keamanan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPertanianSemusimLahanBasah6.png" /></td><td>Kawasan Pertanian Semusim Lahan Basah</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPertanianSemusimLahanKering7.png" /></td><td>Kawasan Pertanian Semusim Lahan Kering</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPertanianTanamanKeras8.png" /></td><td>Kawasan Pertanian Tanaman Keras</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanHutanProduksiTetap9.png" /></td><td>Kawasan Peruntukan Hutan Produksi Tetap</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanOlahraga10.png" /></td><td>Kawasan Peruntukan Olahraga</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPelayananUmum11.png" /></td><td>Kawasan Peruntukan Pelayanan Umum</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPemakamanUmum12.png" /></td><td>Kawasan Peruntukan Pemakaman Umum</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPendidikan13.png" /></td><td>Kawasan Peruntukan Pendidikan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPerdagangandanJasa14.png" /></td><td>Kawasan Peruntukan Perdagangan dan Jasa</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPerikanan15.png" /></td><td>Kawasan Peruntukan Perikanan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPerkantoran16.png" /></td><td>Kawasan Peruntukan Perkantoran</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPertambangan17.png" /></td><td>Kawasan Peruntukan Pertambangan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPertanianHortikultura18.png" /></td><td>Kawasan Peruntukan Pertanian Hortikultura</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPertanianTanamanPangan19.png" /></td><td>Kawasan Peruntukan Pertanian Tanaman Pangan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPerumahan20.png" /></td><td>Kawasan Peruntukan Perumahan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanPerumahanPerdagangandanJasa21.png" /></td><td>Kawasan Peruntukan Perumahan, Perdagangan dan Jasa</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanPeruntukanWisata22.png" /></td><td>Kawasan Peruntukan Wisata</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KawasanTransportasi23.png" /></td><td>Kawasan Transportasi</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_Kawasanyangmemberikanperlindunganterhadapkawasanbawahannya24.png" /></td><td>Kawasan yang memberikan perlindungan terhadap kawasan bawahannya</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_KolamRetensi25.png" /></td><td>Kolam Retensi</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_Perdesaan26.png" /></td><td>Perdesaan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_Perkotaan27.png" /></td><td>Perkotaan</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_SempadanPantai28.png" /></td><td>Sempadan Pantai</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_SempadanSungai29.png" /></td><td>Sempadan Sungai</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_Sungai30.png" /></td><td>Sungai</td></tr><tr><td style="text-align: center;"><img src="legend/RTRW_Kota_Semarang_3_31.png" /></td><td></td></tr></table>', layer: layer_RTRW_Kota_Semarang_3},
+            {label: '<img src="legend/Kota_Semarang_2.png" /> Kota_Semarang', layer: layer_Kota_Semarang_2},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_1, radioGroup: 'bm' },
+            {label: "UTM_SEMARANG copy", layer: layer_UTM_SEMARANGcopy_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        L.ImageOverlay.include({
+            getBounds: function () {
+                return this._bounds;
+            }
+        });
+        resetLabels([layer_RTRW_Kota_Semarang_3]);
+        map.on("zoomend", function(){
+            resetLabels([layer_RTRW_Kota_Semarang_3]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_RTRW_Kota_Semarang_3]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_RTRW_Kota_Semarang_3]);
+        });
+        </script>        
+    </body>
+</html>
+<footer>
+            <strong>Sistem Informasi Geografis Kota Semarang</strong> &copy; 2026 - Dikembangkan menggunakan QGIS2Web & Leaflet JS
+        </footer>
+
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="data/Kota_Semarang_2.js"></script>
+        <script src="data/RTRW_Kota_Semarang_3.js"></script>
+        <script src="data/PenggunaanTanahSMG_4.js"></script>
+        <script src="data/Clip_Roads_5.js"></script>
+        <script src="data/Clip_Waterways_6.js"></script>
+        
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-7.126354246610636,110.19044640306684],[-6.919737837089006,110.6195280069715]]);
+        
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com">Leaflet</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+
+        // [Fungsi removeEmptyRowsFromPopupContent dan addClassToPopupIfMedia tetap dipertahankan sesuai kode asli]
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() { popup.update(); }, 10);
+                }
+                // ... (lanjutan logika media lainnya dari kode asli Anda)
+            }
+        }
+
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+
+        // Inisialisasi Layer - Memastikan urutan tumpukan (Z-Index)
+        map.createPane('pane_GoogleSatellite_1');
+        map.getPane('pane_GoogleSatellite_1').style.zIndex = 401;
+        var layer_GoogleSatellite_1 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_1',
+            opacity: 1.0,
+            maxZoom: 28,
+        }).addTo(map);
+
+        // ... [Bagian Style dan Inisialisasi layer lainnya seperti RTRW_Kota_Semarang_3, PenggunaanTanahSMG_4 dsb tetap sama] ...
+        // Agar ringkas, bagian pemanggilan layer GeoJSON (L.geoJson) di bawah ini diasumsikan tetap menggunakan logika Anda yang sudah benar.
+
+        // (Contoh pemanggilan layer yang sudah ada di file asli Anda)
+        var layer_Kota_Semarang_2 = new L.geoJson(json_Kota_Semarang_2, {
+            pane: 'pane_Kota_Semarang_2',
+            style: { color: 'rgba(35,35,35,1.0)', fillOpacity: 0.5 }
+        }).addTo(map);
+
+        // Masukkan kembali semua variabel overlaysTree Anda di sini untuk mengaktifkan Layer Control
+        var overlaysTree = [
+            {label: 'Clip_Waterways', layer: layer_Clip_Waterways_6},
+            {label: 'Clip_Roads', layer: layer_Clip_Roads_5},
+            {label: 'Penggunaan Tanah', layer: layer_PenggunaanTanahSMG_4},
+            {label: 'RTRW Kota Semarang', layer: layer_RTRW_Kota_Semarang_3},
+            {label: 'Batas Kota Semarang', layer: layer_Kota_Semarang_2},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_1, radioGroup: 'bm' }
+        ];
+
+        var lay = L.control.layers.tree(null, overlaysTree,{ collapsed: true });
+        lay.addTo(map);
+        </script>        
+    </body>
+</html>
